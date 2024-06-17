@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <style>
+        /* Border for individual post elements inside the frame */
+        .post {
+            border: 1px solid #171515;
+            border-radius: 1px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        /* Style for headings inside the post */
+        .post .title {
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+
+        /* Style for meta information */
+        .post .meta {
+            font-size: 10px;
+            color: #777;
+        }
+
+        /* Style for entry content */
+        .post .entry {
+            margin-bottom: 10px;
+        }
+
+        /* Style for categories */
+        .post p span {
+            margin-right: 5px;
+            padding: 5px;
+            background-color: #f5f5f5;
+            color: #777;
+        }
+
+        /* Style for react buttons */
+        .post form input[type="submit"] {
+            margin-top: 10px;
+        }
+
+    </style>
+</head>
+<body>
+    <div align="center">
+    
+        {{ if  .LoggedIn}}
+        <h2>Welcome </h2>
+    
+        <form action="/submit-post" enctype="multipart/form-data" method="post">
+            {{range .AllCategories}}
+            <label><input type="checkbox" name="preference" value="{{.}}"> {{.}} </label>
+            <!-- <label><input type="checkbox" name="preference" value="game"> Game </label>
+            <label><input type="checkbox" name="preference" value="book"> Book </label>
+            <label><input type="checkbox" name="preference" value="others"> Others </label><br> -->
+            {{end}}
+            <br>
+            <label for="posttitle">Write your Post Title:</label><br>
+            <textarea id name="posttitle" rows="2" cols="50"></textarea><br>
+            <label for="postcontent">Write your Post Content:</label><br>
+            <textarea id="postcontent" name="postcontent" rows="4" cols="50"></textarea><br>
+            <input type="file" name="files" multiple>
+            <input type="submit" value="Submit">
+        </form>
+
+        
+        <br>
+        <div class="frame">
+            <div class="content">
+                {{$userID:=.User.UserUserID}}
+                {{range .AllPosts}}
+                    {{if or (.IsApproved) (eq .UserRole "moderator") (eq .UserRole "admin") (eq .UserID $userID)}}
+                        <div class="post">
+                            <h1 class="title">{{.Title}}</h1>
+                            <p class="meta">
+                                <span class="date">Posted at: {{.CreatedTimeString}}</span>
+                                <span class="postedby">Posted by: {{.Username}}</span>
+                            </p>
+                
+                            {{if .ImagePath}}
+                                <img src="{{.ImagePath}}" alt="Image Description" width="300">
+                            {{end}}
+                            <div style="clear: both;">&nbsp;</div>
+                            <div class="entry">
+                                <h2>{{.Content}}</h2>
+                            </div>
+                
+                            <p>
+                                {{range .Categories}}
+                                <span>#{{.}}</span>
+                                {{end}}
+                            </p>
+                
+                            <form action="/post/react" method="POST" class="formsize">
+                                <input type="hidden" name="post_id" value="{{.PostID}}">
+                                <input type="hidden" name="type" value="1">
+                                <input type="submit" value="👍 {{.LikesCounter}}" class="hover" style="width: 100px;display:flex; float: center; cursor: pointer;background-color: #fff;color: black;">
+                            </form>
+                            
+                            <form action="/post/react" method="POST" class="formsize">
+                                <input type="hidden" name="post_id" value="{{.PostID}}">
+                                <input type="hidden" name="type" value="-1">
+                                <input type="submit" value="👎 {{.DislikeCounter}}" class="hover" style="width: 100px;display:flex; float: center; cursor: pointer;background-color: #fff;color: black;">
+                            </form>
+                
+                            <button onclick="location.href='/comments/{{.PostID}}'">Comments</button>
+                            <br>
+                            <br>
+                            {{if (or (or (eq .UserRole "moderator") (eq .UserRole "admin")) (eq .UserID $userID))}}
+                            <form method="post" action="/delete_post">
+                                <input type="hidden" name="postId" value="{{.PostID}}">
+                                <button  type="submit">Delete Post</button>
+                            </form>
+                            <br>
+                            <br>
+                            {{end}}
+
+                            {{if eq .UserID $userID}}
+                            <form method="get" action="/edit_post">
+                                <input type="hidden" name="postId" value="{{.PostID}}">
+                                <button  type="submit">Edit Post</button>
+                            </form>
+                            <br>
+                            <br>
+                            {{end}}
+                
+
+                            {{if and ( or (eq .UserRole "moderator")) (not .IsApproved) (not .ReportStatus)}}
+                                <form method="post" action="/report_post">
+                                <label><input type="radio" name="report" value="irrelevant"> irrelevant </label>
+                                <label><input type="radio" name="report" value="obscene"> obscene </label>
+                                <label><input type="radio" name="report" value="illegal"> illegal </label>
+                                <label><input type="radio" name="report" value="insulting"> insulting </label><br>
+                                <br>
+                                    <input type="hidden" name="postId" value="{{.PostID}}">
+                                    <button  type="submit">Report Post</button>
+                                </form>
+                                <br>
+                                <br>
+                            {{end}}
+
+                            {{if and ( or (eq .UserRole "moderator") (eq .UserRole "admin")) (not .IsApproved) (not .ReportStatus)}}
+                                <form method="post" action="/approve_post">
+                                    <input type="hidden" name="postId" value="{{.PostID}}">
+                                    <button  type="submit">Approve Post</button>
+                                </form>
+                                <br>
+                                <br>
+                            {{end}}
+                            
+                            {{$reportCategory:=.ReportCategories}}
+                            {{if and (eq .UserRole "admin") (.ReportStatus)}}
+                                <h3>Report from Moderators </h3>
+                                <h4>Report Category: {{$reportCategory}}</h4>
+                                <form method="post" action="/answer_report">
+                                    <input type="hidden" name="postId" value="{{.PostID}}">
+                                    <input type="hidden" name="type" value="0">
+                                    <button  type="submit">Good</button>
+                                </form>
+                                <br>
+                                <br>
+
+                                <form method="post" action="/answer_report">
+                                    <input type="hidden" name="postId" value="{{.PostID}}">
+                                    <input type="hidden" name="type" value="-1">
+                                    <button  type="submit">Bad</button>
+                                </form>
+                                <br>
+                                <br>
+                            {{end}}
+
+                        </div>
+                    {{end}}
+                {{end}}
+            </div>
+        </div>
+        
+
+        {{else}}
+            <h2>Welcome Guest!</h2>
+            <p>Please select an option:</p>
+            <button onclick="location.href='/login'">Login</button>
+            <button onclick="location.href='/registration'">Register</button>
+            <br>
+            <br>
+            <div class = "content">
+                {{range .AllPosts}}
+                {{if .IsApproved}}
+                <div class = "post">
+                    <h1 class = "title">{{.Title}}</h1>
+                    <p class="meta"><span class="date">Posted at: {{.CreatedTimeString}}</span><span class="postedby">Posted by: {{.Username}}</span></p>
+                    {{if .ImagePath}}
+                        <img src="{{.ImagePath}}" alt="Image Description" width="300">
+                    {{end}}
+                    <div style="clear: both;">&nbsp;</div>
+                    <div class = "entry">
+                        <h2>{{.Content}}</h2>
+                    </div>
+
+                    <p>
+                        {{range .Categories}}
+                        <span>#{{.}}</span>
+                        {{end}}
+                    </p>
+                    <p><span>👍 {{.LikesCounter}}</span> <span>👎 {{.DislikeCounter}}</span></p>
+                    <button onclick="location.href='/comments/{{.PostID}}'">Comments</button>
+                </div>
+                {{end}}
+                {{end}}
+            </div>
+        {{end}}
+
+    </div>
+
+
+</body>
+</html>
